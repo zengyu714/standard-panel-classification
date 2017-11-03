@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from retina.fpn import FPN50, FPN101
+from retina.fpn import FPN18, FPN34, FPN50, FPN101
 from torch.autograd import Variable
 
 

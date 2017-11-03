@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(description='PyTorch RetinaNet Training')
 parser.add_argument('--lr', default=1e-3, type=float, help='learning rate')
 parser.add_argument('--model', '-m', default='FPN50', help='base fpn model')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+parser.add_argument('--stop-parallel', '-x', action='store_true', help='stop use parallel training')
 args = parser.parse_args()
 
 assert torch.cuda.is_available(), 'Error: CUDA not found!'
@@ -50,7 +51,11 @@ if args.resume:
     start_epoch = checkpoint['epoch']
     best_loss = checkpoint['loss']
 
-net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+if not args.stop_parallel:
+    net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+else:
+    torch.cuda.set_device(3)
+
 net.cuda()
 
 criterion = FocalLoss()
@@ -75,7 +80,7 @@ def train(epoch):
         optimizer.step()
 
         train_loss += loss.data[0]
-        print('** batch_idx: %d ** | train_loss: %.4f | avg_loss: %.4f' % (
+        print('** batch_idx: %d ** | train_loss: %.4f | avg_loss: %.4f\r\n' % (
             batch_idx, loss.data[0], train_loss / (batch_idx + 1)))
 
 
@@ -92,7 +97,7 @@ def test(epoch):
         loc_preds, cls_preds = net(inputs)
         loss = criterion(loc_preds, loc_targets, cls_preds, cls_targets)
         test_loss += loss.data[0]
-        print('** batch_idx: %d ** | test_loss: %.3f | avg_loss: %.3f' % (
+        print('** batch_idx: %d ** | test_loss: %.3f | avg_loss: %.3f\r\n' % (
             batch_idx, loss.data[0], test_loss / (batch_idx + 1)))
 
     # Save checkpoint
