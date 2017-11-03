@@ -26,7 +26,7 @@ class FocalLoss(nn.Module):
 
         t = one_hot_embedding(y.data.cpu(), 1 + self.num_classes)  # [N,13]
         t = t[:, 1:]  # exclude background
-        t = Variable(t).cuda()  # [N,20]
+        t = Variable(t).cuda()  # [N,13]
 
         p = x.sigmoid()
         pt = p * t + (1 - p) * (1 - t)  # pt = p if t > 0 else 1-p
@@ -86,7 +86,9 @@ class FocalLoss(nn.Module):
         pos_neg = cls_targets > -1  # exclude ignored anchors
         mask = pos_neg.unsqueeze(2).expand_as(cls_preds)
         masked_cls_preds = cls_preds[mask].view(-1, self.num_classes)
-        cls_loss = self.focal_loss_alt(masked_cls_preds, cls_targets[pos_neg])
+        # cls_loss = self.focal_loss_alt(masked_cls_preds, cls_targets[pos_neg])
+        cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg])
+
 
         print('loc_loss: %.4f | cls_loss: %.4f' % (loc_loss.data[0] / num_pos, cls_loss.data[0] / num_pos), end=' | ')
         loss = (loc_loss + cls_loss) / num_pos

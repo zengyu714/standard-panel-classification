@@ -43,14 +43,13 @@ parser.add_argument('--send_images_to_visdom', type=str2bool, default=True,
                     help='Sample a random image from each 10th batch, send it to visdom after augmentations step')
 parser.add_argument('--save_folder', default='weights/', help='Location to save checkpoint models')
 parser.add_argument('--voc_root', default=VOCroot, help='Location of VOC root directory')
-parser.add_argument('-g', '--cuda-device', type=int, default=0, help='choose which gpu to use')
 
 # Root setting
 os.chdir('/home/zengyu/Lab/pytorch/standard-panel-classification/')
 
 args = parser.parse_args()
 
-args.start_iter = 55000
+args.start_iter = 100000
 args.resume = 'ssd300/weights/ssd300_0712_{}.pth'.format(args.start_iter)
 
 if args.cuda and torch.cuda.is_available():

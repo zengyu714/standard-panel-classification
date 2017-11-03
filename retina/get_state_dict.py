@@ -8,22 +8,23 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
-from retina.fpn import FPN50
+from retina.fpn import FPN50, FPN101
 from retina.retinanet import RetinaNet
 
+base_version = 101
+print('Loading pretrained ResNet{} model..'.format(base_version))
+d = torch.load('../model/resnet{}.pth'.format(base_version))
 
-print('Loading pretrained ResNet50 model..')
-d = torch.load('../model/resnet50.pth')
-
-print('Loading into FPN50..')
-fpn = FPN50()
+model_name = 'FPN{}'.format(base_version)
+print('Loading into {}..'.format(model_name))
+fpn = eval(model_name)()
 dd = fpn.state_dict()
 for k in d.keys():
     if not k.startswith('fc'):  # skip fc layers
         dd[k] = d[k]
 
 print('Saving RetinaNet..')
-net = RetinaNet()
+net = RetinaNet(model_name)
 for m in net.modules():
     if isinstance(m, nn.Conv2d):
         init.normal(m.weight, mean=0, std=0.01)
@@ -37,5 +38,5 @@ pi = 0.01
 init.constant(net.cls_head[-1].bias, -math.log((1-pi)/pi))
 
 net.fpn.load_state_dict(dd)
-torch.save(net.state_dict(), '../model/init_net.pth')
+torch.save(net.state_dict(), '../model/init_{}.pth'.format(model_name))
 print('Done!')

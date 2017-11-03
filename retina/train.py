@@ -14,6 +14,7 @@ from bluntools.checkpoints import save_checkpoints
 
 parser = argparse.ArgumentParser(description='PyTorch RetinaNet Training')
 parser.add_argument('--lr', default=1e-3, type=float, help='learning rate')
+parser.add_argument('--model', '-m', default='FPN50', help='base fpn model')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 args = parser.parse_args()
 
@@ -38,13 +39,15 @@ testloader = data.DataLoader(testset, batch_size=16, shuffle=False, num_workers=
 os.chdir('/home/zengyu/Lab/pytorch/standard-panel-classification/')
 
 # Model
-net = RetinaNet()
-net.load_state_dict(torch.load('retina/model/init_net.pth'))
+base = args.model
+net = RetinaNet(base)
+net.load_state_dict(torch.load('retina/model/init_{}.pth'.format(base)))
 
 if args.resume:
     print('==> Resuming from checkpoint..')
-    checkpoint = torch.load('retina/checkpoints/best_ckpt.pth')
+    checkpoint = torch.load('retina/checkpoints/{}/best_ckpt.pth'.format(base))
     net.load_state_dict(checkpoint['net'])
+    start_epoch = checkpoint['epoch']
     best_loss = checkpoint['loss']
 
 net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
@@ -102,12 +105,12 @@ def test(epoch):
             'loss' : test_loss,
             'epoch': epoch,
         }
-        torch.save(state, 'retina/checkpoints/best_ckpt.pth')
+        torch.save(state, 'retina/checkpoints/{}/best_ckpt.pth'.format(base))
         best_loss = test_loss
 
 
 # Check save dir
-save_dir = 'retina/checkpoints'
+save_dir = 'retina/checkpoints/{}'.format(base)
 if not os.path.isdir(save_dir):
     os.mkdir(save_dir)
 for epoch in range(start_epoch, start_epoch + 200):

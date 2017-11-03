@@ -4,20 +4,20 @@
     Licensed under The MIT License [see LICENSE for details]
 """
 
-import torch
-import torch.backends.cudnn as cudnn
-from torch.autograd import Variable
-from data import VOCroot, AnnotationTransform, SSDDataset, BaseTransform, VOC_CLASSES
-from data import VOC_CLASSES as labelmap
-
-from ssd import build_ssd
+import argparse
+import os
+import pickle
 
 import sys
-import os
 import time
-import argparse
+import torch
 import numpy as np
-import pickle
+import torch.backends.cudnn as cudnn
+from torch.autograd import Variable
+
+from helper.config import VOCroot, VOC_CLASSES, VOC_CLASSES as labelmap
+from helper.input import AnnotationTransform, SSDDataset, BaseTransform
+from ssd300.ssd import build_ssd
 
 if sys.version_info[0] == 2:
     import xml.etree.cElementTree as ET
@@ -30,7 +30,7 @@ def str2bool(v):
 
 
 parser = argparse.ArgumentParser(description='Single Shot MultiBox Detection')
-parser.add_argument('--trained_model', default='ssd300/weights/ssd300_0712_135000.pth',
+parser.add_argument('--trained_model', default='ssd300/weights/ssd300_0712_120000.pth',
                     type=str, help='Trained state_dict file path to open')
 parser.add_argument('--save_folder', default='ssd300/eval/', type=str,
                     help='File path to save results')

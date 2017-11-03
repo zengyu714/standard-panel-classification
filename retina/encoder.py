@@ -93,17 +93,17 @@ class DataEncoder:
         cls_targets[ignore] = -1  # for now just mark ignored to -1
         return loc_targets, cls_targets
 
-    def decode(self, loc_preds, cls_preds, input_size):
+    def decode(self, loc_preds, cls_preds, input_size, return_score=False):
         """Decode outputs back to bouding box locations and class labels.
 
         Args:
-          loc_preds: (tensor) predicted locations, sized [#anchors, 4].
-          cls_preds: (tensor) predicted class labels, sized [#anchors, #classes].
-          input_size: (int/tuple) model input size of (w,h).
-
+            loc_preds: (tensor) predicted locations, sized [#anchors, 4].
+            cls_preds: (tensor) predicted class labels, sized [#anchors, #classes].
+            input_size: (int/tuple) model input size of (w,h).
+            return_score: (bool) indicate whether to return score value.
         Returns:
-          boxes: (tensor) decode box locations, sized [#obj,4].
-          labels: (tensor) class labels for each box, sized [#obj,].
+            boxes: (tensor) decode box locations, sized [#obj,4].
+            labels: (tensor) class labels for each box, sized [#obj,].
         """
         CLS_THRESH = 0.5
         NMS_THRESH = 0.5
@@ -125,4 +125,6 @@ class DataEncoder:
         if not len(ids):  # Fail to detect, choose the max score
             ids = score.max(0)[1]
         keep = box_nms(boxes[ids], score[ids], threshold=NMS_THRESH)
+        if return_score:
+            return boxes[ids][keep], labels[ids][keep], score[ids][keep]
         return boxes[ids][keep], labels[ids][keep]

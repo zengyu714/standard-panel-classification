@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from retina.fpn import FPN50
+from retina.fpn import FPN50, FPN101
 from torch.autograd import Variable
 
 
@@ -9,9 +9,9 @@ class RetinaNet(nn.Module):
     num_anchors = 9
     num_classes = 12
 
-    def __init__(self):
+    def __init__(self, fpn='FPN50'):
         super(RetinaNet, self).__init__()
-        self.fpn = FPN50()
+        self.fpn = eval(fpn)()
         self.loc_head = self._make_head(self.num_anchors * 4)
         self.cls_head = self._make_head(self.num_anchors * self.num_classes)
 
@@ -25,7 +25,7 @@ class RetinaNet(nn.Module):
             loc_pred = loc_pred.permute(0, 2, 3, 1).contiguous().view(
                     x.size(0), -1, 4)  # [N, 9*4,H,W] -> [N,H,W, 9*4] -> [N,H*W*9, 4]
             cls_pred = cls_pred.permute(0, 2, 3, 1).contiguous().view(
-                    x.size(0), -1, self.num_classes)  # [N,9*20,H,W] -> [N,H,W,9*20] -> [N,H*W*9,20]
+                    x.size(0), -1, self.num_classes)  # [N,9*12,H,W] -> [N,H,W,9*12] -> [N,H*W*9,12]
             loc_preds.append(loc_pred)
             cls_preds.append(cls_pred)
         return torch.cat(loc_preds, 1), torch.cat(cls_preds, 1)

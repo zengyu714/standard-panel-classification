@@ -114,7 +114,7 @@ def FPN50():
 
 
 def FPN101():
-    return FPN(Bottleneck, [2, 4, 23, 3])
+    return FPN(Bottleneck, [3, 4, 23, 3])
 
 
 def test():

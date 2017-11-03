@@ -1,11 +1,9 @@
 import os
-import sys
 import glob
 import codecs
 
 import cv2
 import tqdm
-import visdom
 import matplotlib
 
 matplotlib.use('Agg')
@@ -20,17 +18,17 @@ from joblib import Parallel, delayed
 
 from ssd300.ssd import build_ssd
 from helper.config import VOC_CLASSES as labels
-from helper.deploy import DeployDataset, check_dir
+from helper.deploy import DeployDataset, check_dir, merge_pred_true, statistics
 
 # Init
 # -------------------------
 exp_root = '/home/zengyu/Lab/pytorch/standard-panel-classification'
 os.chdir(exp_root)
 
-torch.cuda.set_device(1)
+torch.cuda.set_device(3)
 
 # Build SSD300 in test phase
-model_resume_step = 135000
+model_resume_step = 120000
 num_classes = len(labels) + 1
 net = build_ssd('test', 300, num_classes).eval().cuda()
 net.load_weights('ssd300/weights/ssd300_0712_{}.pth'.format(model_resume_step))
@@ -144,15 +142,6 @@ def inner(nested_dict):
     return nested_dict['prediction'][0]
 
 
-def get_highest_score(records):
-    """Find the highest score from a list of frame predication in the same class
-    Only consider the valid class: 'sp_qn', 'sp_gg', 'sp_sfb'
-    """
-    valid = ['sp_qn', 'sp_gg', 'sp_sfb']
-    records = [r for r in records if inner(r)['class'] in valid]
-    return sorted(records, key=lambda d: inner(d)['score'])[-1]
-
-
 def choose_from_multiboxes(full_predictions):
     """Choose the highest score from multiple boundingboxes in one frame"""
     predictions = full_predictions['prediction']
@@ -180,38 +169,6 @@ def draw_boundingbox(image, prediction, im_save_name, show_label=None):
 
 
 # -----------------------------------------------------------------------------------------------
-
-
-def save_deployment(dataset, save_dir, batch_size=64):
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
-
-    total_num = len(dataset)
-    h, w = dataset.image_size
-
-    deploy_results = []
-    for im_batch, p_batch in tqdm.tqdm(dataloader,
-                                       total=total_num // batch_size, unit=' batch({})'.format(batch_size)):
-        x_batch = Variable(im_batch, volatile=True).cuda()
-
-        detections = net(x_batch).data
-        scale = torch.Tensor([w, h, w, h])  # scale each detection back up to the image
-
-        for i, detection in enumerate(detections):
-            pred = []
-            for j in range(detection.size(0)):
-                k = 0
-                while detection[j, k, 0] >= 0.6:
-                    label_name = labels[j - 1]
-                    pt = (detection[j, k, 1:] * scale).cpu().numpy()
-                    coords = (pt[0], pt[1]), pt[2] - pt[0] + 1, pt[3] - pt[1] + 1
-                    k += 1
-                    # score = detection[j, k, 0]
-                    # pred.append({'class': label_name, 'score': score, 'position': coords})
-                    pred.append({'class': label_name, 'position': coords})
-            deploy_results.append({'index': p_batch[i], 'prediction': pred})
-    np.save(save_dir + '/{}.npy'.format('deploy_results'), deploy_results)
-
-
 # Measure 1: strictly compare with label
 # -----------------------------------------------------------------------------------------------
 
@@ -363,9 +320,6 @@ def deploy_1():
         # final_statistics()
 
 
-# -----------------------------------------------------------------------------------------------
-
-
 # Measure 2
 # -----------------------------------------------------------------------------------------------
 def compare_per_frame(cls='KLHC'):
@@ -430,5 +384,50 @@ def deploy_2():
         print('*' * 30, 'Finished process {}'.format(cls), '*' * 30)
 
 
+# Latest
+# -----------------------------------------------------------------------------------------------
+
+
+def save_deployment(dataset, save_dir, batch_size=64):
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
+
+    total_num = len(dataset)
+    h, w = dataset.image_size
+
+    deploy_results = []
+    for im_batch, p_batch in tqdm.tqdm(dataloader,
+                                       total=total_num // batch_size, unit=' batch({})'.format(batch_size)):
+        x_batch = Variable(im_batch, volatile=True).cuda()
+
+        detections = net(x_batch).data
+        scale = torch.Tensor([w, h, w, h])  # scale each detection back up to the image
+
+        for i, detection in enumerate(detections):
+            pred = []
+            for j in range(detection.size(0)):
+                k = 0
+                while detection[j, k, 0] >= 0.6:
+                    label_name = labels[j - 1]
+                    score = detection[j, k, 0]
+                    pt = (detection[j, k, 1:] * scale).cpu().numpy().astype(int)
+                    coords = (pt[0], pt[1]), pt[2] - pt[0] + 1, pt[3] - pt[1] + 1
+                    k += 1
+                    pred.append({'class': label_name, 'score': score, 'position': coords})
+            deploy_results.append({'index': p_batch[i], 'prediction': pred})
+    np.save(save_dir + '/{}.npy'.format('deploy_results'), deploy_results)
+
+
+def main():
+    for cls in ['KLAC', 'KLFE', 'KLHC']:
+        save_dir = 'deployment/ssd300/{}'.format(cls)
+        check_dir(save_dir)
+
+        # dataset = DeployDataset(cls=cls)
+        # save_deployment(dataset, save_dir)
+        # merge_pred_true('ssd300', cls)
+        statistics('ssd300', cls)
+        print('*' * 30, 'Finished process {}'.format(cls), '*' * 30)
+
+
 if __name__ == '__main__':
-    deploy_1()
+    main()
