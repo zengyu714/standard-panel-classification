@@ -105,8 +105,12 @@ def test(epoch):
     test_loss /= len(testloader)
     if test_loss < best_loss:
         print('Saving..')
+        if not args.stop_parallel:
+            saved_module = net.module
+        else:
+            saved_module = net
         state = {
-            'net'  : net.module.state_dict(),
+            'net'  : saved_module.state_dict(),
             'loss' : test_loss,
             'epoch': epoch,
         }

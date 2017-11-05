@@ -1,12 +1,6 @@
 import os
 
-import cv2
 import tqdm
-import visdom
-import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 
 import torch
@@ -23,11 +17,11 @@ from helper.deploy import check_dir, DeployDataset, merge_pred_true, statistics
 exp_root = '/home/zengyu/Lab/pytorch/standard-panel-classification'
 os.chdir(exp_root)
 
-base = 'FPN50'
+base = 'FPN18'
 checkpoint = torch.load('retina/checkpoints/{}/best_ckpt.pth'.format(base))
 
 print('Loading model from epoch {}...'.format(checkpoint['epoch']))
-net = RetinaNet()
+net = RetinaNet(base)
 net.load_state_dict(checkpoint['net'])
 net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
 net.eval().cuda()
@@ -66,13 +60,14 @@ def save_deployment(dataset, save_dir, batch_size=64):
 
 def main():
     for cls in ['KLAC', 'KLFE', 'KLHC']:
-        save_dir = 'deployment/retina/{}/{}'.format(base, cls)
+        model = 'retina/{}'.format(base)
+        save_dir = 'deployment/{}/{}'.format(model, cls)
         check_dir(save_dir)
 
-        # dataset = DeployDataset(cls=cls)
-        # save_deployment(dataset, save_dir)
-        # merge_pred_true('retina', cls)
-        statistics('retina', cls)
+        dataset = DeployDataset(cls=cls)
+        save_deployment(dataset, save_dir)
+        merge_pred_true(model, cls)
+        statistics(model, cls)
         print('*' * 30, 'Finished process {}'.format(cls), '*' * 30)
 
 

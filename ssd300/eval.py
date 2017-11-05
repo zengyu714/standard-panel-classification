@@ -359,7 +359,7 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
 
     # timers
     _t = {'im_detect': Timer(), 'misc': Timer()}
-    output_dir = get_output_dir('eval/ssd300_{}'.format(eval_model_step), set_type)
+    output_dir = get_output_dir('ssd300/eval/ssd300_{}'.format(eval_model_step), set_type)
     det_file = os.path.join(output_dir, 'detections.pkl')
 
     for i in range(num_images):

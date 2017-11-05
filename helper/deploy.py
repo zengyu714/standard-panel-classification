@@ -1,6 +1,7 @@
 import codecs
 import os
 import glob
+import datetime
 import numpy as np
 
 import cv2
@@ -12,6 +13,8 @@ from itertools import groupby
 from helper.config import DATASET_NUMS, KLAC_CORRECTION, KLFE_CORRECTION, KLHC_CORRECTION
 
 
+# helper function
+# ------------------------------------------------------
 def label_map(line):
     if '非' in line:
         res = 'nsp_'
@@ -49,7 +52,9 @@ def check_dir(p):
         os.mkdir(p)
 
 
-def npy2txt(npy, txt_dir):
+def npy2txt(npy_dir):
+    npy = np.load(npy_dir)
+    txt_dir = npy_dir.replace('.npy', '.txt')
     with open(txt_dir, 'w+') as f:
         for n in tqdm(npy):
             f.write('{}\r\n'.format(n))
@@ -89,10 +94,11 @@ def correct_label(record):
     cls = video_idx[:4]  # e.g., 'KLAC'
 
     true_right = [c for c in eval('{}_CORRECTION'.format(cls)) if c.startswith(video_idx)]
-    prob_right = ['{}_{}.jpg'.format(video_idx, i) for i in range(frame_idx - 7, frame_idx + 7)]
+    prob_right = ['{}_{}.jpg'.format(video_idx, i) for i in range(frame_idx - 7, frame_idx + 7)]  # TODO:narrow limits
 
-    if true_right and true_right[0] in prob_right:
-        return True
+    for tr in true_right:
+        if tr in prob_right:
+            return True
     return False
 
 
@@ -113,6 +119,7 @@ def concise_label(save_dir='data/Deploy/LABEL'):
         np.save(save_dir + '/{}_{}.npy'.format(cls, 'concise_labels'), concise_labels)
 
 
+# ------------------------------------------------------
 def merge_pred_true(model, cls):
     pred_path = 'deployment/{}/{}/deploy_results.npy'.format(model, cls)
     true_path = 'data/Deploy/LABEL/{}_concise_labels.npy'.format(cls)
@@ -144,28 +151,50 @@ def merge_pred_true(model, cls):
     np.save(pred_path.replace('deploy_', 'interest_'), interest)
 
 
+def strict_judgment(interest_path):
+    """Do strict judgement from all interested predictions.
+    That is, find one frame with the highest score in a video
+    and then compare with label.
+
+    Argument:
+        interest_path: (str) path to file includes list of all interested records (dict)
+    Return:
+        best_nums: (int) true positive numbers
+        pred_nums: (int) predict positive numbers (exclude mislabeled samples)
+        bests: (list) list of best predicted records.
+    """
+    pred_nums, best_nums, bests = 0, 0, []
+
+    interest = np.load(interest_path)
+    cls = get_class_index(interest[0])[:4]
+
+    # split into separate videos
+    for vn, frames in groupby(interest, key=lambda d: d['index'].split('/')[-2]):
+        best = sorted(frames, key=lambda d: d['prediction'][0]['score'])[-1]
+        # Filter: the latter half videos are the real test set
+        if get_video_index(best) > DATASET_NUMS[cls] // 2:
+            pred_nums += 1
+            if best['prediction'][0]['class'] == best['label'] or correct_label(best):
+                best_nums += 1
+                bests.append(best)
+            elif best['label'] in ['others', 'missed']:
+                pred_nums -= 2
+
+    best_path = interest_path.replace('interest', 'best')
+    np.save(best_path, bests)
+    return best_nums, pred_nums
+
+
 def statistics(model, cls):
     """Compute statistic by frame"""
-    with open('deployment/{}/statistics.txt'.format(model), 'w+') as f_stat:
+    with open('deployment/{}/statistics.txt'.format(model), 'a+') as f_stat:
         interest_path = 'deployment/{}/{}/interest_results.npy'.format(model, cls)
-        interest = np.load(interest_path)
-        npy2txt(interest, interest_path.replace('npy', 'txt'))
-        # split into separate videos
-        pred_nums = 0
-        best_nums = 0
-        for vn, frames in groupby(interest, key=lambda d: d['index'].split('/')[-2]):
-            best = sorted(frames, key=lambda d: d['prediction'][0]['score'])[-1]
-            # Filter: the latter half videos are the real test set
-            if get_video_index(best) > DATASET_NUMS[cls] // 2:
-                pred_nums += 1
-                if best['prediction'][0]['class'] == best['label'] or correct_label(best):
-                    best_nums += 1
-                elif best['label'] in ['others', 'missed']:
-                    pred_nums -= 2
+        best_nums, pred_nums = strict_judgment(interest_path)
 
-        info = '{} precision: {}/{} {:.5f}\r\n'.format(cls, best_nums, pred_nums, best_nums / pred_nums)
-        print(info)
+        now = datetime.datetime.now()
+        info = '{} precision: {}/{} {:.5f} @ {}\r\n'.format(cls, best_nums, pred_nums, best_nums / pred_nums, now)
         f_stat.write(info)
+        print(info)
 
 
 class DeployDataset(data.Dataset):
@@ -208,6 +237,6 @@ if __name__ == '__main__':
     exp_root = '/home/zengyu/Lab/pytorch/standard-panel-classification'
     os.chdir(exp_root)
 
-    concise_label()
+    # concise_label()
     # merge_pred_true(model='retina')
-    # statistics(model='retina')
+    statistics(model='retina/FPN50', cls='KLAC')
