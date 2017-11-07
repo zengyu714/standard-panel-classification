@@ -20,7 +20,7 @@ os.chdir(exp_root)
 base = 'FPN18'
 checkpoint = torch.load('retina/checkpoints/{}/best_ckpt.pth'.format(base))
 
-print('Loading model from epoch {}...'.format(checkpoint['epoch']))
+print('Loading {} model from epoch {}...'.format(base, checkpoint['epoch']))
 net = RetinaNet(base)
 net.load_state_dict(checkpoint['net'])
 net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))

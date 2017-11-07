@@ -26,11 +26,8 @@ start_epoch = 0  # start from epoch 0 or last epoch
 # Data
 print('==> Preparing data..')
 
-train_sets = [('2007', 'trainval')]
-val_sets = [('2007', 'val')]
-
-trainset = RetinaDataset(train_sets)
-testset = RetinaDataset(val_sets)
+trainset = RetinaDataset([('2007', 'trainval')])
+testset = RetinaDataset([('2007', 'val')])
 trainloader = data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=8,
                               collate_fn=trainset.collate_fn, pin_memory=True)
 testloader = data.DataLoader(testset, batch_size=16, shuffle=False, num_workers=8,

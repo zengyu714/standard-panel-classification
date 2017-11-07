@@ -10,7 +10,10 @@ import torch.utils.data as data
 
 from tqdm import tqdm
 from itertools import groupby
-from helper.config import DATASET_NUMS, KLAC_CORRECTION, KLFE_CORRECTION, KLHC_CORRECTION
+from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import average_precision_score
+
+from helper.config import DATASET_NUMS, DATASET_LABEL_NAME, KLAC_CORRECTION, KLFE_CORRECTION, KLHC_CORRECTION
 
 
 # helper function
@@ -60,12 +63,20 @@ def npy2txt(npy_dir):
             f.write('{}\r\n'.format(n))
 
 
+def display_verbose(verbose):
+    # identity
+    if verbose:
+        return lambda a: a
+    else:
+        return tqdm.tqdm
+
+
 def get_class_index(d):
     """Get class name and index from the whole dictionary
-       E.g.,
-       '{'index': 'data/Deploy/KLAC/KLAC0570/KLAC0570_12.jpg', 'prediction': ..., 'label': ...}'
-       ==>  (str) 'KLAC0570'
-       """
+    E.g.,
+    '{'index': 'data/Deploy/KLAC/KLAC0570/KLAC0570_12.jpg', 'prediction': ..., 'label': ...}'
+    ==>  (str) 'KLAC0570'
+    """
     return d['index'].split('/')[-2]
 
 
@@ -80,11 +91,20 @@ def get_video_index(d):
 
 def get_frame_index(d):
     """Get frame index from the whole dictionary
-       E.g.,
-       '{'index': 'data/Deploy/KLAC/KLAC0570/KLAC0570_12.jpg', 'prediction': ..., 'label': ...}'
-       ==>  (int) 12
-       """
+    E.g.,
+    '{'index': 'data/Deploy/KLAC/KLAC0570/KLAC0570_12.jpg', 'prediction': ..., 'label': ...}'
+    ==>  (int) 12
+    """
     return int(d['index'].split('_')[-1][:-4])
+
+
+def get_frame_prediction(d):
+    """Get class name and index from the whole dictionary
+    E.g.,
+    '{'index': '...', 'prediction': [{'class': 'sp_sfb', 'position': ..., 'score': ...}]}], 'label': ...}'
+    ==>  (dict) {'class': 'sp_sfb', 'position': ..., 'score': ...}
+    """
+    return d['prediction'][0]
 
 
 def correct_label(record):
@@ -94,7 +114,7 @@ def correct_label(record):
     cls = video_idx[:4]  # e.g., 'KLAC'
 
     true_right = [c for c in eval('{}_CORRECTION'.format(cls)) if c.startswith(video_idx)]
-    prob_right = ['{}_{}.jpg'.format(video_idx, i) for i in range(frame_idx - 7, frame_idx + 7)]  # TODO:narrow limits
+    prob_right = ['{}_{}.jpg'.format(video_idx, i) for i in range(frame_idx - 6, frame_idx + 7)]
 
     for tr in true_right:
         if tr in prob_right:
@@ -143,7 +163,7 @@ def merge_pred_true(model, cls):
     interest = []
     for m in merged:
         try:
-            tmp = m['prediction'][0]['class']
+            tmp = get_frame_prediction(m)['class']
         except (TypeError, IndexError):
             tmp = 'none'
         if tmp in ['sp_qn', 'sp_gg', 'sp_sfb']:
@@ -151,7 +171,7 @@ def merge_pred_true(model, cls):
     np.save(pred_path.replace('deploy_', 'interest_'), interest)
 
 
-def strict_judgment(interest_path):
+def strict_judgment(interest_path, threshold=0.9):
     """Do strict judgement from all interested predictions.
     That is, find one frame with the highest score in a video
     and then compare with label.
@@ -159,40 +179,59 @@ def strict_judgment(interest_path):
     Argument:
         interest_path: (str) path to file includes list of all interested records (dict)
     Return:
-        best_nums: (int) true positive numbers
-        pred_nums: (int) predict positive numbers (exclude mislabeled samples)
-        bests: (list) list of best predicted records.
+        y_truth: (list) true value in {0, 1} represents false and true sample respectively
+        y_score: (list) probability ∈ [0, 1] with the same length as y_truth
     """
-    pred_nums, best_nums, bests = 0, 0, []
+    preds, pred_hits = [], []
 
     interest = np.load(interest_path)
     cls = get_class_index(interest[0])[:4]
 
     # split into separate videos
     for vn, frames in groupby(interest, key=lambda d: d['index'].split('/')[-2]):
-        best = sorted(frames, key=lambda d: d['prediction'][0]['score'])[-1]
-        # Filter: the latter half videos are the real test set
-        if get_video_index(best) > DATASET_NUMS[cls] // 2:
-            pred_nums += 1
-            if best['prediction'][0]['class'] == best['label'] or correct_label(best):
-                best_nums += 1
-                bests.append(best)
-            elif best['label'] in ['others', 'missed']:
-                pred_nums -= 2
+        best = sorted(frames, key=lambda d: get_frame_prediction(d)['score'])[-1]
+        # filter: the latter half videos are the real test set
+        if get_video_index(best) > DATASET_NUMS[cls] // 2 and get_frame_prediction(best)['score'] > threshold:
+            if best['label'] not in ['others', 'missed']:
+                preds.append(best)
 
-    best_path = interest_path.replace('interest', 'best')
-    np.save(best_path, bests)
-    return best_nums, pred_nums
+    cls_name = DATASET_LABEL_NAME[cls]
+    y_truth = [int(p['label'] == cls_name or correct_label(p)) for p in preds]
+    y_score = [get_frame_prediction(p)['score'] for p in preds]
+
+    # update corrected label
+    corrected = []
+    for i, p in enumerate(preds):
+        if y_truth[i]:
+            p['label'] = cls_name
+        corrected.append(p)
+    np.save(interest_path.replace('interest_results', 'corrected_best'), corrected)
+
+    return y_truth, y_score
 
 
-def statistics(model, cls):
+def statistics(model, cls, threshold=0.5):
     """Compute statistic by frame"""
     with open('deployment/{}/statistics.txt'.format(model), 'a+') as f_stat:
         interest_path = 'deployment/{}/{}/interest_results.npy'.format(model, cls)
-        best_nums, pred_nums = strict_judgment(interest_path)
+        y_truth, y_score = strict_judgment(interest_path)
 
+        y_truth = np.array(y_truth)
+        y_pred = np.array(y_score) > threshold
+
+        TP = sum(y_truth * y_pred)
+        pred_nums, true_nums = sum(y_pred), sum(y_truth)
+        nums = 'TP: {}\t# Pred: {}\t# True: {}\t'.format(TP, pred_nums, true_nums)
+
+        # precision = precision_score(y_truth, y_pred)
+        # recall = recall_score(y_truth, y_pred)
+        # f1 = f1_score(y_truth, y_pred)
+        # evaluation = 'Precision: {:.5f}\r\nRecall: {:.5f}\r\nF1 score: {:.5f}'.format(precision, recall, f1)
+
+        ap = average_precision_score(y_truth, y_score)
+        evaluation = 'AP: {:.4f}'.format(ap)
         now = datetime.datetime.now()
-        info = '{} precision: {}/{} {:.5f} @ {}\r\n'.format(cls, best_nums, pred_nums, best_nums / pred_nums, now)
+        info = """===> {} @ {}\n{}\r\n{}""".format(cls, now, nums, evaluation)
         f_stat.write(info)
         print(info)
 

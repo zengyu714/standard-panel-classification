@@ -23,6 +23,14 @@ DATASET_NUMS = {
     'KLHC': 1069
 }
 
+
+DATASET_LABEL_NAME = {
+    'KLAC': 'sp_sfb',
+    'KLFE': 'sp_gg',
+    'KLHC': 'sp_qn'
+}
+
+
 # default batch size
 BATCHES = 32
 # data reshuffled at every epoch
@@ -83,6 +91,7 @@ v1 = {
 }
 
 # TESTSET CORRECTION
+# ---------------------------------------------------------------------------------
 KLFE_CORRECTION = ['KLFE1089_37.jpg', 'KLFE1096_49.jpg', 'KLFE1101_71.jpg', 'KLFE1108_65.jpg', 'KLFE1114_36.jpg',
                    'KLFE1124_77.jpg', 'KLFE1127_58.jpg', 'KLFE1133_54.jpg', 'KLFE1134_39.jpg', 'KLFE1135_103.jpg',
                    'KLFE1143_55.jpg', 'KLFE1144_80.jpg', 'KLFE1148_59.jpg', 'KLFE1149_74.jpg', 'KLFE1152_46.jpg',

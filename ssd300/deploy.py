@@ -1,20 +1,11 @@
 import os
-import glob
-import codecs
-
-import cv2
 import tqdm
-import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 
 import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
-from joblib import Parallel, delayed
 
 from ssd300.ssd import build_ssd
 from helper.config import VOC_CLASSES as labels
