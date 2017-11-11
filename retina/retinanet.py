@@ -33,9 +33,9 @@ class RetinaNet(nn.Module):
     def _make_head(self, out_planes):
         layers = []
         for _ in range(4):
-            layers.append(nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1))
+            layers.append(nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1))
             layers.append(nn.ReLU(True))
-        layers.append(nn.Conv2d(256, out_planes, kernel_size=3, stride=1, padding=1))
+        layers.append(nn.Conv2d(128, out_planes, kernel_size=3, stride=1, padding=1))
         return nn.Sequential(*layers)
 
 

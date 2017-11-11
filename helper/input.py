@@ -118,7 +118,8 @@ class SSDDataset(data.Dataset):
         img_id = self.ids[index]
 
         target = ET.parse(self._annopath % img_id).getroot()
-        img = cv2.imread(self._imgpath % img_id)
+        img_gray = cv2.imread(self._imgpath % img_id, cv2.IMREAD_GRAYSCALE)
+        img = img_gray[..., None]
         height, width, channels = img.shape
 
         if self.target_transform is not None:
@@ -128,8 +129,7 @@ class SSDDataset(data.Dataset):
             target = np.array(target)
             img, boxes, labels = self.transform(img, target[:, :4], target[:, 4])
             # to rgb
-            img = img[:, :, (2, 1, 0)]
-            # img = img.transpose(2, 0, 1)
+            # img = img[:, :, (2, 1, 0)]
             target = np.hstack((boxes, np.expand_dims(labels, axis=1)))
         return torch.from_numpy(img).permute(2, 0, 1), target, height, width
         # return torch.from_numpy(img), target, height, width
@@ -146,7 +146,8 @@ class SSDDataset(data.Dataset):
             PIL img
         '''
         img_id = self.ids[index]
-        return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        im_gray = cv2.imread(self._imgpath % img_id, cv2.IMREAD_GRAYSCALE)
+        return im_gray[..., None]
 
     def pull_anno(self, index):
         '''Returns the original annotation of image at index

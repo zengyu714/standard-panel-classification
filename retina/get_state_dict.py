@@ -29,7 +29,13 @@ for base_version in [18, 34, 50, 101]:
     dd = fpn.state_dict()
     for k in d.keys():
         if not k.startswith('fc'):  # skip fc layers
-            dd[k] = d[k]
+            if k.startswith('conv1'):
+                cvt = torch.FloatTensor([0.299, 0.587, 0.114])
+                prep = d[k].permute(0, 2, 3, 1).data  # size: [64, 7, 7, 3]
+                gray = torch.matmul(prep, cvt)  # size [64, 7, 7]
+                dd[k] = gray[:, None, ...]
+            else:
+                dd[k] = d[k]
 
     print('Saving RetinaNet - {}...'.format(model_name))
     net = RetinaNet(model_name)

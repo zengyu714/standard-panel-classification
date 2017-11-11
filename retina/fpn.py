@@ -65,7 +65,7 @@ class FPN(nn.Module):
         super(FPN, self).__init__()
         self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
 
         # Bottom-up layers
@@ -73,17 +73,17 @@ class FPN(nn.Module):
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.conv6 = nn.Conv2d(512 * block.expansion, 256, kernel_size=3, stride=2, padding=1)
-        self.conv7 = nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1)
+        self.conv6 = nn.Conv2d(512 * block.expansion, 128, kernel_size=3, stride=2, padding=1)
+        self.conv7 = nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1)
 
         # Lateral layers
-        self.latlayer1 = nn.Conv2d(512 * block.expansion, 256, kernel_size=1, stride=1, padding=0)
-        self.latlayer2 = nn.Conv2d(256 * block.expansion, 256, kernel_size=1, stride=1, padding=0)
-        self.latlayer3 = nn.Conv2d(128 * block.expansion, 256, kernel_size=1, stride=1, padding=0)
+        self.latlayer1 = nn.Conv2d(512 * block.expansion, 128, kernel_size=1, stride=1, padding=0)
+        self.latlayer2 = nn.Conv2d(256 * block.expansion, 128, kernel_size=1, stride=1, padding=0)
+        self.latlayer3 = nn.Conv2d(128 * block.expansion, 128, kernel_size=1, stride=1, padding=0)
 
         # Top-down layers
-        self.toplayer1 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
-        self.toplayer2 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.toplayer1 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
+        self.toplayer2 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)

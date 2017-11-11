@@ -79,10 +79,15 @@ class ConvertFromInts(object):
 class SubtractMeans(object):
     def __init__(self, mean):
         self.mean = np.array(mean, dtype=np.float32)
+        self.gray_mean = np.inner(self.mean, (0.299, 0.587, 0.114))  # convert mean to gray
 
     def __call__(self, image, boxes=None, labels=None):
         image = image.astype(np.float32)
-        image -= self.mean
+
+        if image.shape[-1] == 1:
+            image -= self.gray_mean
+        else:
+            image -= self.mean
         return image.astype(np.float32), boxes, labels
 
 
@@ -113,7 +118,10 @@ class Resize(object):
         self.size = size
 
     def __call__(self, image, boxes=None, labels=None):
+        lose_dim = image.shape[-1] == 1
         image = cv2.resize(image, (self.size, self.size))
+        if lose_dim:
+            image = image[..., None]
         return image, boxes, labels
 
 
@@ -308,7 +316,6 @@ class RandomSampleCrop(object):
                 current_boxes[:, 2:] = np.minimum(current_boxes[:, 2:], rect[2:])
                 # adjust to crop (by substracting crop's left,top)
                 current_boxes[:, 2:] -= rect[:2]
-
                 return current_image, current_boxes, current_labels
 
 
@@ -416,13 +423,13 @@ class Augmentation(object):
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
-            # PhotometricDistort(),
-            # Expand(self.mean),
-            RandomLightingNoise(),
+            # RandomLightingNoise(),  # need swap channels
             RandomSampleCrop(),
             RandomMirror(),
             ToPercentCoords(),
             Resize(self.size),
+            RandomBrightness(),
+            RandomContrast(),
             SubtractMeans(self.mean)
         ])
 
