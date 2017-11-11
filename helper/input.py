@@ -7,7 +7,7 @@ import torch
 import torch.utils.data as data
 import numpy as np
 
-from helper.augment import Augmentation, BaseTransform
+from helper.ultrasound_ops import Augmentation, BaseTransform
 from helper.config import VOCroot, VOC_CLASSES
 from retina.encoder import DataEncoder
 
@@ -131,8 +131,8 @@ class SSDDataset(data.Dataset):
             # to rgb
             # img = img[:, :, (2, 1, 0)]
             target = np.hstack((boxes, np.expand_dims(labels, axis=1)))
-        return torch.from_numpy(img).permute(2, 0, 1), target, height, width
-        # return torch.from_numpy(img), target, height, width
+            im_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1)
+        return im_tensor.float(), target, height, width
 
     def pull_image(self, index):
         '''Returns the original image object at index in PIL form
@@ -158,8 +158,8 @@ class SSDDataset(data.Dataset):
         Argument:
             index (int): index of img to get annotation of
         Return:
-            list:  [img_id, [(label, bbox coords),...]]
-                eg: ('001718', [('dog', (96, 13, 438, 332))])
+            list:  [img_id, [[bbox coords(x0, y0, x1, y1), cls_idx]]
+                eg: ('001718', [[96, 13, 438, 332, 3]]
         '''
         img_id = self.ids[index]
         anno = ET.parse(self._annopath % img_id).getroot()
@@ -213,8 +213,7 @@ class RetinaDataset(data.Dataset):
         else:
             raise ValueError('Unknown dataset')
 
-        self.dataset = SSDDataset(VOCroot, train_sets, self.augment(self.input_size, self.means),
-                                  AnnotationTransform())
+        self.dataset = SSDDataset(VOCroot, train_sets, self.augment(self.input_size), AnnotationTransform())
         self.data_encoder = DataEncoder()
 
     def __getitem__(self, idx):
@@ -251,7 +250,7 @@ def test_retina_dataset(phrase):
         print(images.size())
         print(loc_targets.size())
         print(cls_targets.size())
-        grid = torchvision.utils.make_grid(images, 4)
+        grid = torchvision.utils.make_grid(images, 2)
         vis.image(grid)
         # torchvision.utils.save_image(grid, 'test_input.jpg')
         break

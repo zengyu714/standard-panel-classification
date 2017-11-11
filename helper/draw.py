@@ -20,7 +20,7 @@ os.chdir(exp_root)
 
 from retina.fpn import FPN50
 from helper.deploy import check_dir
-from helper.augment import BaseTransform
+from helper.ultrasound_ops import BaseTransform
 from helper.input import AnnotationTransform, SSDDataset, ssd_collate
 
 

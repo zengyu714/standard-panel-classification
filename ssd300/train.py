@@ -12,7 +12,7 @@ import time
 import numpy as np
 from ssd300.ssd import build_ssd
 from ssd300.layers.modules import MultiBoxLoss
-from helper.augment import Augmentation
+from helper.ultrasound_ops import Augmentation
 from helper.config import v2, v1, VOCroot, VOC_CLASSES
 from helper.input import AnnotationTransform, SSDDataset, ssd_collate
 

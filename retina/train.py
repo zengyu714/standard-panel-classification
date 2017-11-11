@@ -88,6 +88,7 @@ def test(epoch):
     test_loss = 0
     for batch_idx, (inputs, loc_targets, cls_targets) in enumerate(testloader):
         inputs = Variable(inputs.cuda(), volatile=True)
+
         loc_targets = Variable(loc_targets.cuda())
         cls_targets = Variable(cls_targets.cuda())
 
