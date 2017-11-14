@@ -15,9 +15,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-exp_root = '/home/zengyu/Lab/pytorch/standard-panel-classification'
-os.chdir(exp_root)
-
 from retina.fpn import FPN50
 from helper.deploy import check_dir
 from helper.ultrasound_ops import BaseTransform
@@ -213,6 +210,9 @@ def filtered_tsne(epoch, save_name='helper/filtered_tsne.npy'):
 
 
 if __name__ == '__main__':
+    exp_root = '/home/zengyu/Lab/pytorch/standard-panel-classification'
+    os.chdir(exp_root)
+
     draw_boxes_by_model('retina/FPN34', vis_name='corrected_best')
 
     # image_tsne(300, save_name='helper/image_tsne.npy')

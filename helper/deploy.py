@@ -13,6 +13,7 @@ from itertools import groupby
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.metrics import average_precision_score
 
+from helper.ultrasound_ops import BaseTransform
 from helper.config import DATASET_NUMS, DATASET_LABEL_NAME, KLAC_CORRECTION, KLFE_CORRECTION, KLHC_CORRECTION
 
 
@@ -52,7 +53,7 @@ def sort_helper(p):
 
 def check_dir(p):
     if not os.path.exists(p):
-        os.mkdir(p)
+        os.makedirs(p)
 
 
 def npy2txt(npy_dir):
@@ -253,6 +254,7 @@ class DeployDataset(data.Dataset):
         self.frame_paths = sorted(glob.glob('{}/*/*.jpg'.format(self.root)), key=sort_helper)
         self.image_size = cv2.imread(self.frame_paths[0]).shape[:-1]
         self.input_size = (300, 300)
+        self.transform = BaseTransform(self.input_size[0])
 
     def __getitem__(self, index):
         return self.pull_image(index)  # im, (h, w)
@@ -262,14 +264,10 @@ class DeployDataset(data.Dataset):
 
     def pull_image(self, index):
         cur_path = self.frame_paths[index]
-        frame = cv2.imread(cur_path)
-        frame = frame[:, :, (2, 1, 0)]  # to rgb
-
-        im = cv2.resize(frame, self.input_size).astype(np.float32)
-        im -= (104.0, 117.0, 123.0)
-
-        # [channel, h, w]
-        return torch.from_numpy(im).permute(2, 0, 1), cur_path
+        frame = cv2.imread(cur_path, 0)[..., None]
+        im = self.transform(frame)[0]
+        im = torch.from_numpy(im).permute(2, 0, 1)  # [c, h, w]
+        return im.float(), cur_path
 
 
 if __name__ == '__main__':

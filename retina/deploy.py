@@ -17,18 +17,19 @@ from helper.deploy import check_dir, DeployDataset, merge_pred_true, statistics
 exp_root = '/home/zengyu/Lab/pytorch/standard-panel-classification'
 os.chdir(exp_root)
 
-base = 'FPN18'
+base = 'FPN34'
 checkpoint = torch.load('retina/checkpoints/{}/best_ckpt.pth'.format(base))
 
 print('Loading {} model from epoch {}...'.format(base, checkpoint['epoch']))
 net = RetinaNet(base)
 net.load_state_dict(checkpoint['net'])
-net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+# net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+torch.cuda.set_device(0)
 net.eval().cuda()
 
 
-def save_deployment(dataset, save_dir, batch_size=64):
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
+def save_deployment(dataset, save_dir, batch_size=2):
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     total_num = len(dataset)
     h, w = dataset.input_size
     ori_h, ori_w = dataset.image_size
@@ -38,7 +39,6 @@ def save_deployment(dataset, save_dir, batch_size=64):
     deploy_results = []
     for im_batch, p_batch in tqdm.tqdm(dataloader, total=total_num // batch_size, unit=' batch({})'.format(batch_size)):
         x_batch = Variable(im_batch, volatile=True).cuda()
-
         loc_preds, cls_preds = net(x_batch)
 
         # scale each detection back up to the image

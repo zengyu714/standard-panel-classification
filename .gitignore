@@ -34,13 +34,15 @@ var/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# IPython Notebook
+# Jupyter Notebook
 .ipynb_checkpoints
 
-# not ready
-.yolo/
+# Not ready
+.yolo2/
 .draw_boundingbox.ipynb
 
-# pycharm
+# Pycharm
 .idea/
 
+# Data folder
+.deployment/
